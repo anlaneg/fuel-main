@@ -24,3 +24,8 @@ lock
 
 Nailgun.egg-info
 repomd.xml*
+
+.cproject
+.project
+.settings/
+
