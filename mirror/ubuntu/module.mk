@@ -24,6 +24,7 @@ Architectures: $(UBUNTU_ARCH)
 VerifyRelease: blindtrust
 endef
 
+#采用debmirror工具做mirror
 define do_debmirror
 set -ex; ./debmirror --progress --checksums --nocleanup \
   --nosource --ignore-release-gpg --rsync-extra=none \

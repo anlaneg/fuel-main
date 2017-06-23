@@ -26,6 +26,7 @@ $(addprefix $(LOCAL_MIRROR_CENTOS_OS_BASEURL)/images/,$(IMAGES_FILES)):
 	mv $@.tmp $@
 
 # centos pxeboot images
+# 下载 centos 对应的pxeboot images文件
 $(addprefix $(LOCAL_MIRROR_CENTOS_OS_BASEURL)/images/pxeboot/,$(PXEBOOT_FILES)):
 	@mkdir -p $(@D)
 	wget -nv -O $@.tmp $(MIRROR_CENTOS_KERNEL_BASEURL)/images/pxeboot/$(@F)
@@ -37,6 +38,7 @@ $(addprefix $(LOCAL_MIRROR_CENTOS_OS_BASEURL)/LiveOS/,$(LIVEOS_FILES)):
 	wget -nv -O $@.tmp $(MIRROR_CENTOS_KERNEL_BASEURL)/LiveOS/$(@F)
 	mv $@.tmp $@
 
+#addprefix 为每个文件加上第一个参数指定的前缀，前要求各文件下载不同的boot文件
 $(BUILD_DIR)/mirror/centos/boot.done: \
 		$(addprefix $(LOCAL_MIRROR_CENTOS_OS_BASEURL)/images/,$(IMAGES_FILES)) \
 		$(addprefix $(LOCAL_MIRROR_CENTOS_OS_BASEURL)/EFI/BOOT/,$(EFI_FILES)) \

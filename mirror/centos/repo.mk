@@ -4,12 +4,14 @@ include $(SOURCE_DIR)/mirror/centos/yum_repos.mk
 
 MIRROR_CENTOS_OS_BASEURL?=$(MIRROR_CENTOS)/os/$(CENTOS_ARCH)
 
+#由于前两个目标没有执行语句，故此目标将被合并。将yum_conf宏写入到yum.conf中
 $(BUILD_DIR)/mirror/centos/etc/yum.conf: $(call depv,yum_conf)
 $(BUILD_DIR)/mirror/centos/etc/yum.conf: export contents:=$(yum_conf)
 $(BUILD_DIR)/mirror/centos/etc/yum.conf:
 	mkdir -p $(@D)
 	/bin/echo -e "$${contents}" > $@
 
+#copy yum插件到yum-plugins目录
 $(BUILD_DIR)/mirror/centos/etc/yum-plugins/priorities.py: \
 		$(SOURCE_DIR)/mirror/centos/yum-priorities-plugin.py
 	mkdir -p $(@D)
@@ -25,6 +27,7 @@ $(BUILD_DIR)/mirror/centos/etc/yum/pluginconf.d/priorities.conf:
 	mkdir -p $(@D)
 	/bin/echo -e "[main]\nenabled=1\ncheck_obsoletes=1\nfull_match=$(DENY_RPM_DOWNGRADE)" > $@
 
+#依据用户配置的YUM repos生成base.repo文件，每一个名称有yum_repo_XXX
 $(BUILD_DIR)/mirror/centos/etc/yum.repos.d/base.repo: $(call depv,YUM_REPOS)
 $(BUILD_DIR)/mirror/centos/etc/yum.repos.d/base.repo: \
 		export contents:=$(foreach repo,$(YUM_REPOS),\n$(yum_repo_$(repo))\n)
@@ -32,12 +35,14 @@ $(BUILD_DIR)/mirror/centos/etc/yum.repos.d/base.repo:
 	@mkdir -p $(@D)
 	/bin/echo -e "$${contents}" > $@
 
+#为yumdownloader打上补丁，产生自已的yumdownloader
 $(BUILD_DIR)/bin/yumdownloader: $(SOURCE_DIR)/mirror/centos/yumdownloader-deps.patch
 	mkdir -p $(@D)
 	cp -a /usr/bin/yumdownloader $(BUILD_DIR)/yumdownloader
 	( cd $(BUILD_DIR) && patch -p0 ) < $<
 	cp -a $(BUILD_DIR)/yumdownloader $@
 
+#依据用户配置的extra rpm repos生成extra.repo
 $(BUILD_DIR)/mirror/centos/etc/yum.repos.d/extra.repo: $(call depv,EXTRA_RPM_REPOS)
 $(BUILD_DIR)/mirror/centos/etc/yum.repos.d/extra.repo: \
 		export contents:=$(foreach repo,$(EXTRA_RPM_REPOS),\n$(call create_extra_repo,$(repo))\n)
@@ -47,6 +52,8 @@ $(BUILD_DIR)/mirror/centos/etc/yum.repos.d/extra.repo:
 
 centos_empty_installroot:=$(BUILD_DIR)/mirror/centos/dummy_installroot
 
+#对yumdownloader打补丁
+#生成yum.conf文件,苍库配置，设置插件，设置插件配置，设置yum配置完成
 $(BUILD_DIR)/mirror/centos/yum-config.done: \
 		$(BUILD_DIR)/bin/yumdownloader \
 		$(BUILD_DIR)/mirror/centos/etc/yum.conf \
@@ -58,9 +65,11 @@ $(BUILD_DIR)/mirror/centos/yum-config.done: \
 	mkdir -p $(centos_empty_installroot)/cache
 	$(ACTION.TOUCH)
 
+#完成rpm包下载
 $(BUILD_DIR)/mirror/centos/yum.done: $(BUILD_DIR)/mirror/centos/rpm-download.done
 	$(ACTION.TOUCH)
 
+#下载urls.list中的包（urls.list中记录的是yumdownloader需要下载的包吗？）
 $(BUILD_DIR)/mirror/centos/rpm-download.done: $(BUILD_DIR)/mirror/centos/urls.list
 	dst="$(LOCAL_MIRROR_CENTOS_OS_BASEURL)/Packages"; \
 	mkdir -p "$$dst" && \
@@ -69,23 +78,30 @@ $(BUILD_DIR)/mirror/centos/rpm-download.done: $(BUILD_DIR)/mirror/centos/urls.li
 
 # BUILD_PACKAGES=0 - apply patch for requirements rpm, since we need fuel-packages
 ifeq ($(BUILD_PACKAGES),0)
+#requirements-rpm.txt由source_dir下的requirements-rpm.txt与requirements-fule-rpm.txt
+#生成.$^是所有依赖文件，采用cat显示后，按顺序被写入.tmp文件，然后再由tmp文件重命名生成.txt文件
+#生成时间过长，如果一步生成时，出错，则依赖将被满足
 $(BUILD_DIR)/requirements-rpm.txt: \
 		$(SOURCE_DIR)/requirements-rpm.txt \
 		$(SOURCE_DIR)/requirements-fuel-rpm.txt
 	cat $^ | sort -u > $@.tmp
 	mv $@.tmp $@
 else
+#创建$(BUILD_DIR)，并将$< copy到 $@D中
 $(BUILD_DIR)/requirements-rpm.txt: $(SOURCE_DIR)/requirements-rpm.txt
 	$(ACTION.COPY)
 endif
 
 # Strip the comments and sort the list alphabetically
+# 丢弃掉requirements-rpm.txt中的以'#'号开头的行，并重新排序 （即*-rpm-0是不含注释行的）
+# $(BUILD_DIR)/requirements-rpm.txt 文件
 $(BUILD_DIR)/mirror/centos/requirements-rpm-0.txt: $(BUILD_DIR)/requirements-rpm.txt
 	mkdir -p $(@D) && \
 	grep -v -e '^#' $< > $@.tmp && \
 	sort -u < $@.tmp > $@.pre && \
 	mv $@.pre $@
 
+#整理出需要的rpm包，完成yum配置，下载需要的rpm包
 $(BUILD_DIR)/mirror/centos/urls.list: $(BUILD_DIR)/mirror/centos/requirements-rpm-0.txt \
 		$(BUILD_DIR)/mirror/centos/yum-config.done
 	touch "$(BUILD_DIR)/mirror/centos/conflicting-packages-0.lst"
@@ -182,6 +198,8 @@ $(LOCAL_MIRROR_CENTOS_OS_BASEURL)/comps.xml:
 		wget -nv -O $@ $(MIRROR_CENTOS_OS_BASEURL)/$${COMPSXML}; \
 	fi
 
+#命令前提目标（order-only Prerequisites）,comps.xml的更新不引响repo.done的生成
+#创建yum仓库
 $(BUILD_DIR)/mirror/centos/repo.done: \
 		$(BUILD_DIR)/mirror/centos/yum.done \
 		| $(LOCAL_MIRROR_CENTOS_OS_BASEURL)/comps.xml

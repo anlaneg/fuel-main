@@ -86,6 +86,7 @@ $(BUILD_DIR)/iso/isoroot-dotfiles.done: \
 		$(ISOROOT)/.treeinfo
 	$(ACTION.TOUCH)
 
+#文件copy,准备生成iso需要必备文件，没有看懂，仅看懂了图片
 $(BUILD_DIR)/iso/isoroot-files.done: \
 		$(BUILD_DIR)/iso/isoroot-dotfiles.done \
 		$(ISOROOT)/isolinux/isolinux.cfg \
@@ -152,9 +153,12 @@ $(ISO_PATH): $(BUILD_DIR)/iso/isoroot.done
 	mkdir -p $(BUILD_DIR)/iso/efi_tmp/efi_image
 	# We need to have a partition which will be pointed from ISO as efi partition
 	# vmlinuz + initrd + bootloader + conffile = about 38MB. 100M should be enough ^_^
+	#创建100M img 文件
 	dd bs=1M count=100 if=/dev/zero of=$(BUILD_DIR)/iso/efi_tmp/efiboot.img
 	# UEFI standard say to us that EFI partition should be some FAT-related filesystem
+	# 格式化为vfat格式
 	mkfs.vfat -n EFI $(BUILD_DIR)/iso/efi_tmp/efiboot.img
+	#挂载创建的img文件
 	sudo umount -l $(BUILD_DIR)/iso/efi_tmp/efi_image || true
 	sudo mount $(BUILD_DIR)/iso/efi_tmp/efiboot.img $(BUILD_DIR)/iso/efi_tmp/efi_image
 

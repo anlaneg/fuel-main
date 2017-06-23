@@ -1,8 +1,10 @@
+#创建$@需要的目录，将$<文件copy到$@中
 define ACTION.COPY
 @mkdir -p $(@D)
 cp $< $@
 endef
 
+#创建$@对应的目录，并touch $@
 define ACTION.TOUCH
 @mkdir -p $(@D)
 touch $@
@@ -15,6 +17,8 @@ endef
 # and the target which depends on it will be rebuilt.
 # Example:
 # target: $(call depv,varname)
+# 如果$($1)之前的值与$1.dep中记录的不相等，则重建.dep,则会导致$@将被重建
+#如果相等，则$@不会被重建
 DEPV_DIR:=$(BUILD_DIR)/depv
 define depv
 $(shell mkdir -p $(DEPV_DIR))

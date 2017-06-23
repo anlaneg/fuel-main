@@ -20,19 +20,37 @@
 # Note: these packages should be also excluded from base and updates.
 x86_rpm_packages_whitelist:=syslinux*
 
+#提供yum.conf文件格式
 define yum_conf
 [main]
+#//缓存的目录，yum 在此存储下载的rpm 包和数据库，默认设置为/var/cache/yum
 cachedir=$(BUILD_DIR)/mirror/centos/cache
+#//安装完成后是否保留软件包，0为不保留（默认为0），1为保留
 keepcache=0
+#//Debug 信息输出等级，范围为0-10，缺省为2
 debuglevel=6
+#//yum 日志文件位置。用户可以到/var/log/yum.log 文件去查询过去所做的更新。
 logfile=$(BUILD_DIR)/mirror/centos/yum.log
+#//包的策略。一共有两个选项，newest 和last，这个作用是如果你设置了多个repository，而同一软件在不同的repository 中同时存在，
+#yum 应该安装哪一个，如果是newest，则yum 会安装最新的那个版本。如果是last，则yum 会将服务器id 以字母表排序，并选择最后的那个服务器上的软件安装。
+#一般都是选newest。
+#pkgpolicy=newest
+#// 排除某些软件在升级名单之外，可以用通配符，列表中各个项目要用空格隔开，这个对于安装了诸如美化包，中文补丁的朋友特别有用。
 exclude=ntp-dev*
+#//有1和0两个选项，设置为1，则yum 只会安装和系统架构匹配的软件包，例如，yum 不会将i686的软件包安装在适合i386的系统中。默认为1。
 exactarch=1
+#//这是一个update 的参数，具体请参阅yum(8)，简单的说就是相当于upgrade，允许更新陈旧的RPM包。
 obsoletes=1
+#// 有1和0两个选择，分别代表是否是否进行gpg(GNU Private Guard) 校验，以确定rpm 包的来源是有效和安全的。
+# 这个选项如果设置在[main]部分，则对每个repository 都有效。默认值为0。
 gpgcheck=0
+#//是否启用插件，默认1为允许，0表示不允许。我们一般会用yum-fastestmirror这个插件。
 plugins=1
+#//一个插件就是一个".py"的python脚本文件，这个文件会被安装到一个通过yum.conf的pluginpath选项指定的目录。
 pluginpath=$(BUILD_DIR)/mirror/centos/etc/yum-plugins
+#//A list of directories where yum should look for plugin configuration files. Default is ‘/etc/yum/pluginconf.d’
 pluginconfpath=$(BUILD_DIR)/mirror/centos/etc/yum/pluginconf.d
+#// 列出yum寻找.repo文件的目录，默认是/etc/yum/repos.d
 reposdir=$(BUILD_DIR)/mirror/centos/etc/yum.repos.d
 sslverify=False
 endef
@@ -123,6 +141,7 @@ get_repo_priority=$(shell val=`echo $1 | cut -d ',' -f3`; echo $${val:-10})
 # where:
 # repo=repo_name,http://path_to_the_repo,repo_priority
 # repo_priority is a number from 1 to 99
+# 提供repository配置
 define create_extra_repo
 [$(call get_repo_name,$1)]
 name = Repo "$(call get_repo_name,$1)"
