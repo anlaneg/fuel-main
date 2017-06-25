@@ -28,4 +28,5 @@ repomd.xml*
 .cproject
 .project
 .settings/
+.pydevproject
 
