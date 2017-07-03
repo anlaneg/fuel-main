@@ -28,6 +28,7 @@ $(shell diff >/dev/null 2>&1 $(DEPV_DIR)/$1.tmp $(DEPV_DIR)/$1.dep \
 $(DEPV_DIR)/$1.dep
 endef
 
+#输出一个空行
 define NEWLINE
 
 

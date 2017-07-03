@@ -86,7 +86,7 @@ $(BUILD_DIR)/iso/isoroot-dotfiles.done: \
 		$(ISOROOT)/.treeinfo
 	$(ACTION.TOUCH)
 
-#文件copy,准备生成iso需要必备文件，没有看懂，仅看懂了图片
+#文件copy,准备生成iso需要必备文件
 $(BUILD_DIR)/iso/isoroot-files.done: \
 		$(BUILD_DIR)/iso/isoroot-dotfiles.done \
 		$(ISOROOT)/isolinux/isolinux.cfg \
@@ -103,6 +103,7 @@ $(ISOROOT)/ks.yaml:
 
 $(ISOROOT)/isolinux/isolinux.cfg: $(SOURCE_DIR)/iso/isolinux/isolinux.cfg ; $(ACTION.COPY)
 $(ISOROOT)/isolinux/splash.jpg: $(SOURCE_DIR)/iso/isolinux/splash.jpg ; $(ACTION.COPY)
+#生成ks.cfg（自动化安装使用）
 $(ISOROOT)/ks.cfg: $(SOURCE_DIR)/iso/ks.template $(SOURCE_DIR)/iso/ks.py $(ISOROOT)/ks.yaml
 	python $(SOURCE_DIR)/iso/ks.py \
 		-t $(SOURCE_DIR)/iso/ks.template \
@@ -141,10 +142,12 @@ $(ISO_PATH): $(BUILD_DIR)/iso/isoroot.done
 	rm -f $@
 	mkdir -p $(BUILD_DIR)/iso/isoroot-mkisofs $(@D)
 	rsync -a --delete $(ISOROOT)/ $(BUILD_DIR)/iso/isoroot-mkisofs
+	#将isolinux.cfg文件中的ip,dns1,netmask,gw更改为配置的地址
 	sudo sed -r -i -e "s/ip=[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}/ip=$(MASTER_IP)/" $(BUILD_DIR)/iso/isoroot-mkisofs/isolinux/isolinux.cfg
 	sudo sed -r -i -e "s/dns1=[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}/dns1=$(MASTER_DNS)/" $(BUILD_DIR)/iso/isoroot-mkisofs/isolinux/isolinux.cfg
 	sudo sed -r -i -e "s/netmask=[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}/netmask=$(MASTER_NETMASK)/" $(BUILD_DIR)/iso/isoroot-mkisofs/isolinux/isolinux.cfg
 	sudo sed -r -i -e "s/gw=[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}/gw=$(MASTER_GW)/" $(BUILD_DIR)/iso/isoroot-mkisofs/isolinux/isolinux.cfg
+	#替换版本，volume_id
 	sudo sed -r -i -e "s/will_be_substituted_with_PRODUCT_VERSION/$(PRODUCT_VERSION)/" $(BUILD_DIR)/iso/isoroot-mkisofs/isolinux/isolinux.cfg
 	sudo sed -r -i -e 's/will_be_substituted_with_ISO_VOLUME_ID/$(ISO_VOLUME_ID)/g' $(BUILD_DIR)/iso/isoroot-mkisofs/isolinux/isolinux.cfg
 	sudo sed -r -i -e 's/will_be_substituted_with_ISO_VOLUME_ID/$(ISO_VOLUME_ID)/g' $(BUILD_DIR)/iso/isoroot-mkisofs/ks.cfg
@@ -162,6 +165,7 @@ $(ISO_PATH): $(BUILD_DIR)/iso/isoroot.done
 	sudo umount -l $(BUILD_DIR)/iso/efi_tmp/efi_image || true
 	sudo mount $(BUILD_DIR)/iso/efi_tmp/efiboot.img $(BUILD_DIR)/iso/efi_tmp/efi_image
 
+	#生成BOOTX64.conf文件(通过ks参数指出自动化安装配置）
 	# This needs to be edited in place due to some strange implementations of UEFI
 	# For example, Tianocore OVMF will not use efiboot.img. Instead, it looks for
 	# bootloader and it conffiles in /EFI/BOOT/* on main ISO partition (with ISO9660 fs)
@@ -181,6 +185,7 @@ $(ISO_PATH): $(BUILD_DIR)/iso/isoroot.done
 
 	# But many UEFI implementations will use our efiboot.img and if we want to boot from it,
 	# we also need to place kernel and initrd there (and bootloader and conffile to it too)
+	# copy必要的系统，并将生成的efiboot.img放入$(BUILD_DIR)/iso/isoroot-mkisofs/images/ 处
 	sudo cp -f $(BUILD_DIR)/iso/isoroot-mkisofs/isolinux/vmlinuz $(BUILD_DIR)/iso/efi_tmp/efi_image/
 	sudo cp -f $(BUILD_DIR)/iso/isoroot-mkisofs/isolinux/initrd.img $(BUILD_DIR)/iso/efi_tmp/efi_image/
 	sudo mkdir -p $(BUILD_DIR)/iso/efi_tmp/efi_image/EFI/BOOT/
@@ -191,6 +196,7 @@ $(ISO_PATH): $(BUILD_DIR)/iso/isoroot.done
 	cp -f $(BUILD_DIR)/iso/efi_tmp/efiboot.img $(BUILD_DIR)/iso/isoroot-mkisofs/images/
 	sudo rm -rf $(BUILD_DIR)/iso/efi_tmp/
 
+	#生成iso
 	xorriso -as mkisofs \
 		-V $(ISO_VOLUME_ID) -p $(ISO_VOLUME_PREP) \
 		-J -R \
@@ -200,4 +206,5 @@ $(ISO_PATH): $(BUILD_DIR)/iso/isoroot.done
 		-eltorito-alt-boot -e images/efiboot.img -no-emul-boot \
 		-isohybrid-gpt-basdat \
 		-o $@ $(BUILD_DIR)/iso/isoroot-mkisofs
+	#注入md5校验值到iso
 	implantisomd5 $@

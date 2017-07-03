@@ -1,13 +1,13 @@
-install
-text
+install #表示是安装，而不是升级 
+text #文本方式安装
 repo --name=mos --baseurl=file:///run/install/repo/mos-centos
 repo --name=extra --baseurl=file:///run/install/repo/extra-repos/proposed
 %include /tmp/source.ks
-{{reboot}}
-lang en_US.UTF-8
-keyboard us
-rootpw r00tme
-timezone --utc Etc/UTC
+{{reboot}} #安装结束后，机器需要reboot,并尝试弹出cd/dev/bootdisk
+lang en_US.UTF-8 #设置语言
+keyboard us      #设置keyboard样式
+rootpw r00tme    #root密码
+timezone --utc Etc/UTC #设置时区
 firewall --disabled
 selinux --permissive
 # ignore unsupported hardware warning
@@ -23,6 +23,7 @@ skipx
 # opportunity to change the root password.
 services --disabled=sshd
 
+#@Core包将被安装，-firewalld,postfix,tuned包将不被安装
 %packages --nobase
 @Core
 -firewalld
@@ -34,6 +35,7 @@ services --disabled=sshd
 # PREINSTALL SECTION
 # HERE ARE COMMANDS THAT WILL BE LAUNCHED BEFORE
 # INSTALLATION PROCESS ITSELF
+# 预安装脚本段
 %pre
 #!/bin/sh
 

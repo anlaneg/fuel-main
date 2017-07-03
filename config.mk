@@ -4,14 +4,22 @@
 
 # Base path for build and mirror directories.
 # Default value: current directory
+#= 是最基本的赋值
+#:= 是覆盖之前的值
+#?= 是如果没有被赋值过就赋予等号后面的值
+#+= 是添加等号后面的值
+
 TOP_DIR?=$(PWD)
 TOP_DIR:=$(abspath $(TOP_DIR))
+
 # Working build directory
 BUILD_DIR?=$(TOP_DIR)/build
 BUILD_DIR:=$(abspath $(BUILD_DIR))
+
 # Path for build artifacts
 ARTS_DIR?=$(BUILD_DIR)/artifacts
 ARTS_DIR:=$(abspath $(ARTS_DIR))
+
 # Path for cache of downloaded packages
 LOCAL_MIRROR?=$(TOP_DIR)/local_mirror
 LOCAL_MIRROR:=$(abspath $(LOCAL_MIRROR))
