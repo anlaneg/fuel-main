@@ -20,7 +20,7 @@
 # Note: these packages should be also excluded from base and updates.
 x86_rpm_packages_whitelist:=syslinux*
 
-#提供yum.conf文件格式
+#提供/etc/yum.conf文件内容
 define yum_conf
 [main]
 #//缓存的目录，yum 在此存储下载的rpm 包和数据库，默认设置为/var/cache/yum
@@ -55,6 +55,7 @@ reposdir=$(BUILD_DIR)/mirror/centos/etc/yum.repos.d
 sslverify=False
 endef
 
+#定义官方的repo(含base,updates,...)
 define yum_repo_official
 [base]
 name=CentOS-$(CENTOS_RELEASE) - Base
@@ -93,6 +94,7 @@ includepkgs=$(x86_rpm_packages_whitelist)
 priority=90
 endef
 
+#定义仓库extra
 define yum_repo_extras
 [extras]
 name=CentOS-$(CENTOS_RELEASE) - Extras
@@ -120,6 +122,7 @@ enabled=0
 priority=90
 endef
 
+#定义仓库fuel
 define yum_repo_fuel
 [fuel]
 name=Fuel Packages
@@ -132,8 +135,11 @@ endef
 
 # Accept EXTRA_RPM_REPOS in a form of a list of: name,url,priority
 # Accept EXTRA_RPM_REPOS in a form of list of (default priority=10): name,url
+#将$1按','号划分，并取第一部分
 get_repo_name=$(shell echo $1 | cut -d ',' -f 1)
+#将$1按','号划分，并取第二部分
 get_repo_url=$(shell echo $1 | cut -d ',' -f2)
+#将$1按','号划分，并取第三部分，如果第三部分没有配置，则取10，否则取配置值
 get_repo_priority=$(shell val=`echo $1 | cut -d ',' -f3`; echo $${val:-10})
 
 # It's a callable object.
@@ -141,7 +147,9 @@ get_repo_priority=$(shell val=`echo $1 | cut -d ',' -f3`; echo $${val:-10})
 # where:
 # repo=repo_name,http://path_to_the_repo,repo_priority
 # repo_priority is a number from 1 to 99
-# 提供repository配置
+# 生成extra仓库，$1按逗号划分第一部分为仓库名称
+# $1 按逗号划分第二部分为url
+# $1 按逗号划分第三部分为优先级
 define create_extra_repo
 [$(call get_repo_name,$1)]
 name = Repo "$(call get_repo_name,$1)"

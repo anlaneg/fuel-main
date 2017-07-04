@@ -17,7 +17,7 @@ $(BUILD_DIR)/mirror/build.done: \
 		$(BUILD_DIR)/mirror/ubuntu/build.done
 	$(ACTION.TOUCH)
 
-#执行report-changelog.sh脚本,生成changelog
+#执行report-changelog.sh脚本,生成centos,ubuntu的changelog
 $(BUILD_DIR)/mirror/make-changelog.done: $(BUILD_DIR)/mirror/build.done
 	sudo bash -c "export LOCAL_MIRROR=$(LOCAL_MIRROR); \
 		$(SOURCE_DIR)/report-changelog.sh"

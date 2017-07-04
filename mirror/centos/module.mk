@@ -7,7 +7,7 @@ include $(SOURCE_DIR)/mirror/centos/mos-repo.mk
 # This module downloads extra rpm repositories
 include $(SOURCE_DIR)/mirror/centos/extra-repos.mk
 
-#创建yum仓库，下载centos对应的不同boot文件
+#下载centos源，mos源，extra源的相关包，并创建yum仓库，下载centos对应的不同boot文件
 $(BUILD_DIR)/mirror/centos/build.done: \
 		$(BUILD_DIR)/mirror/centos/repo.done \
 		$(BUILD_DIR)/mirror/centos/boot.done \

@@ -4,12 +4,13 @@ include $(SOURCE_DIR)/mirror/centos/yum_repos.mk
 
 MIRROR_CENTOS_OS_BASEURL?=$(MIRROR_CENTOS)/os/$(CENTOS_ARCH)
 
-#由于前两个目标没有执行语句，故此目标将被合并。将yum_conf宏写入到yum.conf中
+#由于前两个目标没有执行语句，故此目标将被合并。将yum_conf宏写入到yum.conf文件中
 $(BUILD_DIR)/mirror/centos/etc/yum.conf: $(call depv,yum_conf)
 $(BUILD_DIR)/mirror/centos/etc/yum.conf: export contents:=$(yum_conf)
 $(BUILD_DIR)/mirror/centos/etc/yum.conf:
 	mkdir -p $(@D)
 	/bin/echo -e "$${contents}" > $@
+
 
 #copy yum插件到yum-plugins目录
 $(BUILD_DIR)/mirror/centos/etc/yum-plugins/priorities.py: \
@@ -22,12 +23,14 @@ $(BUILD_DIR)/mirror/centos/etc/yum-plugins/priorities.py: \
 # of version, realase and arch. This may lead to downgrading of
 # packages (actually this is what we may want sometimes for
 # testing purposes). Please use priorities plugin carefully
-
+# 生成priorities插件配置
 $(BUILD_DIR)/mirror/centos/etc/yum/pluginconf.d/priorities.conf:
 	mkdir -p $(@D)
 	/bin/echo -e "[main]\nenabled=1\ncheck_obsoletes=1\nfull_match=$(DENY_RPM_DOWNGRADE)" > $@
 
-#依据用户配置的YUM repos生成base.repo文件，每一个名称有yum_repo_XXX
+#依据用户配置的YUM_REPOS, 将生成多个yum_repo_XXX,例如yum_repo_official
+# 而 $(yum_repo_official) 将被展开，展开对应的makefile 宏定义，将将此内容写入到
+# base.repo文件中
 $(BUILD_DIR)/mirror/centos/etc/yum.repos.d/base.repo: $(call depv,YUM_REPOS)
 $(BUILD_DIR)/mirror/centos/etc/yum.repos.d/base.repo: \
 		export contents:=$(foreach repo,$(YUM_REPOS),\n$(yum_repo_$(repo))\n)
@@ -42,7 +45,8 @@ $(BUILD_DIR)/bin/yumdownloader: $(SOURCE_DIR)/mirror/centos/yumdownloader-deps.p
 	( cd $(BUILD_DIR) && patch -p0 ) < $<
 	cp -a $(BUILD_DIR)/yumdownloader $@
 
-#依据用户配置的extra rpm repos生成extra.repo
+#依据用户配置的EXTRA_RPM_REPOS变量，生成extra.repo
+# 首先将EXTRA_RPM_REPOS按空格划分为repo,然后调用create_extra_repo 生成仓库内容，并将其写入文件
 $(BUILD_DIR)/mirror/centos/etc/yum.repos.d/extra.repo: $(call depv,EXTRA_RPM_REPOS)
 $(BUILD_DIR)/mirror/centos/etc/yum.repos.d/extra.repo: \
 		export contents:=$(foreach repo,$(EXTRA_RPM_REPOS),\n$(call create_extra_repo,$(repo))\n)
@@ -53,7 +57,7 @@ $(BUILD_DIR)/mirror/centos/etc/yum.repos.d/extra.repo:
 centos_empty_installroot:=$(BUILD_DIR)/mirror/centos/dummy_installroot
 
 #对yumdownloader打补丁
-#生成yum.conf文件,苍库配置，设置插件，设置插件配置，设置yum配置完成
+#生成yum.conf文件,仓库配置，设置插件，设置插件配置，设置yum配置完成
 $(BUILD_DIR)/mirror/centos/yum-config.done: \
 		$(BUILD_DIR)/bin/yumdownloader \
 		$(BUILD_DIR)/mirror/centos/etc/yum.conf \
@@ -65,11 +69,13 @@ $(BUILD_DIR)/mirror/centos/yum-config.done: \
 	mkdir -p $(centos_empty_installroot)/cache
 	$(ACTION.TOUCH)
 
-#完成rpm包下载
+#完成requirements-rpm.txt,requirements-fuel-rpm.txt规定的rpm包下载
 $(BUILD_DIR)/mirror/centos/yum.done: $(BUILD_DIR)/mirror/centos/rpm-download.done
 	$(ACTION.TOUCH)
 
-#下载urls.list中的包（urls.list中记录的是yumdownloader需要下载的包吗？）
+#urls.list已完成的报文url整理，这里我们通过wget下载文件到$dst中
+# xargs -n1 表示每次自标准输入收取一个参数
+# xargs -P4 表示一次启动4个进程进行并行下载
 $(BUILD_DIR)/mirror/centos/rpm-download.done: $(BUILD_DIR)/mirror/centos/urls.list
 	dst="$(LOCAL_MIRROR_CENTOS_OS_BASEURL)/Packages"; \
 	mkdir -p "$$dst" && \
@@ -78,9 +84,8 @@ $(BUILD_DIR)/mirror/centos/rpm-download.done: $(BUILD_DIR)/mirror/centos/urls.li
 
 # BUILD_PACKAGES=0 - apply patch for requirements rpm, since we need fuel-packages
 ifeq ($(BUILD_PACKAGES),0)
-#requirements-rpm.txt由source_dir下的requirements-rpm.txt与requirements-fule-rpm.txt
-#生成.$^是所有依赖文件，采用cat显示后，按顺序被写入.tmp文件，然后再由tmp文件重命名生成.txt文件
-#生成时间过长，如果一步生成时，出错，则依赖将被满足
+#requirements-rpm.txt由source_dir下的requirements-rpm.txt与requirements-fule-rpm.txt 生成。
+#$^是所有依赖文件，采用cat显示后，按顺序被写入.tmp文件，然后再由tmp文件重命名生成.txt文件
 $(BUILD_DIR)/requirements-rpm.txt: \
 		$(SOURCE_DIR)/requirements-rpm.txt \
 		$(SOURCE_DIR)/requirements-fuel-rpm.txt
@@ -101,7 +106,7 @@ $(BUILD_DIR)/mirror/centos/requirements-rpm-0.txt: $(BUILD_DIR)/requirements-rpm
 	sort -u < $@.tmp > $@.pre && \
 	mv $@.pre $@
 
-#整理出需要的rpm包，完成yum配置，下载需要的rpm包
+#整理出需要的rpm包(requirements-rpm-0.txt)，完成yum配置，获得包对应的url地址
 $(BUILD_DIR)/mirror/centos/urls.list: $(BUILD_DIR)/mirror/centos/requirements-rpm-0.txt \
 		$(BUILD_DIR)/mirror/centos/yum-config.done
 	touch "$(BUILD_DIR)/mirror/centos/conflicting-packages-0.lst"
@@ -187,6 +192,7 @@ show-yum-repos-centos: \
 		$(BUILD_DIR)/mirror/centos/etc/yum.repos.d/extra.repo
 	cat $^
 
+# 下载repomd.xml
 $(LOCAL_MIRROR_CENTOS_OS_BASEURL)/comps.xml: \
 		export COMPSXML=$(shell wget -nv -qO- $(MIRROR_CENTOS_OS_BASEURL)/repodata/repomd.xml | grep -m 1 '$(@F)' | awk -F'"' '{ print $$2 }')
 $(LOCAL_MIRROR_CENTOS_OS_BASEURL)/comps.xml:
@@ -203,6 +209,7 @@ $(LOCAL_MIRROR_CENTOS_OS_BASEURL)/comps.xml:
 $(BUILD_DIR)/mirror/centos/repo.done: \
 		$(BUILD_DIR)/mirror/centos/yum.done \
 		| $(LOCAL_MIRROR_CENTOS_OS_BASEURL)/comps.xml
+	#针对$(LOCAL_MIRROR_CENTOS_OS_BASEURL)目录，创建仓库,-g为组配置
 	createrepo -g $(LOCAL_MIRROR_CENTOS_OS_BASEURL)/comps.xml \
 		-o $(LOCAL_MIRROR_CENTOS_OS_BASEURL)/ $(LOCAL_MIRROR_CENTOS_OS_BASEURL)/
 	$(ACTION.TOUCH)

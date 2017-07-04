@@ -52,6 +52,7 @@ $(ISOROOT)/default_deb_repos.yaml:
 ###############
 # CENTOS MIRROR
 ###############
+#构造centos,ubuntu的mirror,生成mirror对应的changelog
 $(BUILD_DIR)/iso/isoroot-centos.done: \
 		$(BUILD_DIR)/mirror/build.done \
 		$(BUILD_DIR)/mirror/make-changelog.done \
@@ -141,6 +142,10 @@ ISO_VOLUME_PREP:="Fuel team"
 $(ISO_PATH): $(BUILD_DIR)/iso/isoroot.done
 	rm -f $@
 	mkdir -p $(BUILD_DIR)/iso/isoroot-mkisofs $(@D)
+	#-a 以archive模式操作、复制目录、符号连接 相当于-rlptgoD
+	# rsync [OPTION]... SRC [SRC]... DEST 
+	#--delete是指如果服务器端删除了这一文件，那么客户端也相应把文件删除，保持真正的一致
+	# 即此命令行实现了$(ISOROOT) 到 isoroot-mkisofs的镜像copy
 	rsync -a --delete $(ISOROOT)/ $(BUILD_DIR)/iso/isoroot-mkisofs
 	#将isolinux.cfg文件中的ip,dns1,netmask,gw更改为配置的地址
 	sudo sed -r -i -e "s/ip=[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}/ip=$(MASTER_IP)/" $(BUILD_DIR)/iso/isoroot-mkisofs/isolinux/isolinux.cfg

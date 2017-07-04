@@ -1,7 +1,9 @@
 #!/bin/bash -e
 CENTOS_CHANGELOG=${LOCAL_MIRROR}/centos-packages.changelog
 UBUNTU_CHANGELOG=${LOCAL_MIRROR}/ubuntu-packages.changelog
+# 如果文件已存在，则删除此文件
 [ -f ${CENTOS_CHANGELOG} ] && rm ${CENTOS_CHANGELOG}
+#针对每一个包，显示其对应的最新的一次changelog
 for packagename in `find ${LOCAL_MIRROR} -name \*.rpm | sort -u`; do
   echo ${packagename##*/} >> ${CENTOS_CHANGELOG}
   rpm -qp --changelog ${packagename} 2>/dev/null | sed -e '/^$/,$d' >> ${CENTOS_CHANGELOG}

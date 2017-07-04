@@ -94,6 +94,7 @@ network-checker \
 python-fuelclient \
 shotgun
 
+#针对packages_list中的每个包，调用build_rpm
 $(eval $(foreach pkg,$(packages_list),$(call build_rpm,$(pkg))$(NEWLINE)))
 
 $(BUILD_DIR)/packages/rpm/repo.done:

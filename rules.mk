@@ -17,8 +17,9 @@ endef
 # and the target which depends on it will be rebuilt.
 # Example:
 # target: $(call depv,varname)
-# 如果$($1)之前的值与$1.dep中记录的不相等，则重建.dep,则会导致$@将被重建
-#如果相等，则$@不会被重建
+# 如果$($1)之前的值与$1.dep中记录的不相等，则重建.dep（mv操作将使其更新）,则会导致$@将被重建
+# 如果相等，则$@不会被重建
+# 检查DEPV_DIR 是否需要被重建，如果重建则将引发$@重建
 DEPV_DIR:=$(BUILD_DIR)/depv
 define depv
 $(shell mkdir -p $(DEPV_DIR))
