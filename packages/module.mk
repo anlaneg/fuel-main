@@ -22,14 +22,20 @@ endef
 # DEBFULLNAME=Commit Author
 # DEBEMAIL=Commit Author email address
 # DEBMSG={commit_sha} {Commit message}
+# $1 为项目名称， $2为包名称（采用项目名称＋包版本）,$3 存放项目的本地位置 ,$4 项目版本(常为HEAD)
+# $5 ???
+# 定义packages/sources/$1/$2 的目标，将git源文件打包
 define prepare_git_source
+#指明项目的包依赖于包相关的项目已被下载{看$(BUILD_DIR)/repos/repos.done}
 $(BUILD_DIR)/packages/sources/$1/$2: $(BUILD_DIR)/repos/repos.done
 $(BUILD_DIR)/packages/source_$1.done: $(BUILD_DIR)/packages/sources/$1/$2
 $(BUILD_DIR)/packages/sources/$1/$2: VERSIONFILE:=$(BUILD_DIR)/packages/sources/$1/version
 $(BUILD_DIR)/packages/sources/$1/$2: CHANGELOGFILE:=$(BUILD_DIR)/packages/sources/$1/changelog
 $(BUILD_DIR)/packages/sources/$1/$2:
 	mkdir -p $(BUILD_DIR)/packages/sources/$1
+	#将项目打包，并存在sources/$1/$1.tar
 	cd $3 && git archive --format tar --worktree-attributes $4 > $(BUILD_DIR)/packages/sources/$1/$1.tar
+	#生成version文件(版本号，进行了多少次修改，最后一次修改是什么）
 	echo VERSION=$(PACKAGE_VERSION) > $$(VERSIONFILE)
 	echo RPMRELEASE=1.mos`git -C $3 rev-list --no-merges $4 --count` >> $$(VERSIONFILE)
 	echo "%changelog\n* `LC_TIME=C date +\"%a %b %d %Y\"` `git -C $3 log -1 --pretty=format:%an` \
@@ -39,13 +45,16 @@ $(BUILD_DIR)/packages/sources/$1/$2:
 	echo DEBFULLNAME=`git -C $3 log -1 --pretty=format:%an` >> $$(VERSIONFILE)
 	echo DEBEMAIL=`git -C $3 log -1 --pretty=format:%ae` >> $$(VERSIONFILE)
 	echo DEBMSG=`git -C $3 rev-parse --short HEAD` `git -C $3 log -1 --pretty=%s` >> $$(VERSIONFILE)
+	#将version文件合入
 	cd $(BUILD_DIR)/packages/sources/$1 && tar -rf $1.tar version
 ifneq ($(USE_PREDEFINED_FUEL_LIB_PUPPET_MODULES),)
 	if [ "$1" = "fuel-library$(FUEL_LIBRARY_VERSION)" ]; then cd $(BUILD_DIR)/packages/sources/$1 && tar -rf $1.tar upstream_modules.tar.gz; fi
 endif
+	# 生成tar.gz
 	cd $(BUILD_DIR)/packages/sources/$1 && gzip -9 $1.tar && mv $1.tar.gz $2
 endef
 
+#对fuel-library的打包进行特别说明
 # fuel-library offline build hook
 ifneq ($(USE_PREDEFINED_FUEL_LIB_PUPPET_MODULES),)
 $(BUILD_DIR)/packages/sources/fuel-library$(FUEL_LIBRARY_VERSION)/upstream_modules.tar.gz:
@@ -57,9 +66,11 @@ $(BUILD_DIR)/packages/source_fuel-library$(FUEL_LIBRARY_VERSION).done: \
 	$(BUILD_DIR)/packages/sources/fuel-library$(FUEL_LIBRARY_VERSION)/upstream_modules.tar.gz
 endif
 
+#所有分支打包完成后，将生成source_%.done文件
 $(BUILD_DIR)/packages/source_%.done:
 	$(ACTION.TOUCH)
 
+#定义项目打包目标
 #NAILGUN_PKGS
 $(eval $(call prepare_git_source,fuel-nailgun,fuel-nailgun-$(PACKAGE_VERSION).tar.gz,$(BUILD_DIR)/repos/fuel-nailgun,HEAD,$(NAILGUN_GERRIT_COMMIT)))
 #FUEL_OSTF_PKGS
@@ -91,6 +102,7 @@ include $(SOURCE_DIR)/packages/deb/module.mk
 .PHONY: packages packages-deb packages-rpm
 
 ifneq ($(BUILD_PACKAGES),0)
+#生成rpm包，生成deb包
 $(BUILD_DIR)/packages/build.done: \
 		$(BUILD_DIR)/packages/rpm/build.done \
 		$(BUILD_DIR)/packages/deb/build.done
@@ -105,4 +117,5 @@ packages-deb: $(BUILD_DIR)/packages/deb/build.done
 
 .PHONY: sources
 
+#下载所有git项目，并将其打包
 sources: $(packages_list:%=$(BUILD_DIR)/packages/source_%.done)

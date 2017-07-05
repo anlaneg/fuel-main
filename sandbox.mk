@@ -91,16 +91,20 @@ SANDBOX_PACKAGES:=bash yum
 define SANDBOX_UP
 echo "Starting SANDBOX up"
 mkdir -p $(SANDBOX)/etc/yum.repos.d
+#生成sandbox的yum配置文件
 cat > $(SANDBOX)/etc/yum.conf <<EOF
 $(sandbox_yum_conf)
 EOF
 # this conf is used outside chroot in order to install yum
+#生成external.yum.conf文件
 cat > $(SANDBOX)/etc/external.yum.conf <<EOF
 $(external_sandbox_yum_conf)
 EOF
 
+#设置resolv.conf,hosts文件
 cp /etc/resolv.conf $(SANDBOX)/etc/resolv.conf
 cp /etc/hosts $(SANDBOX)/etc/hosts
+#生成base.repo
 cat > $(SANDBOX)/etc/yum.repos.d/base.repo <<EOF
 $(yum_upstream_repo)
 $(yum_epel_repo)
@@ -108,6 +112,7 @@ EOF
 mkdir -p $(SANDBOX)/etc/yum/pluginconf.d/
 mkdir -p $(SANDBOX)/etc/yum-plugins/
 mkdir -p $(SANDBOX)/mirrors
+#设置插件，及插件配置
 cp $(SOURCE_DIR)/mirror/centos/yum-priorities-plugin.py $(SANDBOX)/etc/yum-plugins/priorities.py
 cat > $(SANDBOX)/etc/yum/pluginconf.d/priorities.conf << EOF
 [main]
@@ -126,6 +131,7 @@ mount | grep -q $(SANDBOX)/mirrors || sudo mount --bind $(LOCAL_MIRROR) $(SANDBO
 mount | grep -q $(SANDBOX)/proc || sudo mount --bind /proc $(SANDBOX)/proc
 mount | grep -q $(SANDBOX)/dev || sudo mount --bind /dev $(SANDBOX)/dev
 # after installing yum, let's add MOS repos from mounted /mirrors
+# yum 安装完成，修改base.repo
 cat > $(SANDBOX)/etc/yum.repos.d/base.repo <<EOF
 $(yum_upstream_repo)
 $(yum_epel_repo)
@@ -133,6 +139,7 @@ $(yum_local_repo)
 $(yum_local_mos_repo)
 $(yum_extra_build_repo)
 EOF
+#逐个安装SANDBOX_PACKAGES要求的包
 echo $(SANDBOX_PACKAGES) | xargs -n1 | xargs -I_package sudo sh -c 'rm -vf $(SANDBOX)/etc/yum.repos.d/Cent*; chroot $(SANDBOX) yum -y --nogpgcheck install _package'
 # clean all repos except the MOS + upsream + our epel
 sudo rm -vf $(SANDBOX)/etc/yum.repos.d/epel*

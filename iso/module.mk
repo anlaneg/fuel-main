@@ -52,13 +52,16 @@ $(ISOROOT)/default_deb_repos.yaml:
 ###############
 # CENTOS MIRROR
 ###############
-#构造centos,ubuntu的mirror,生成mirror对应的changelog
+#构造centos,ubuntu的mirror,
+#生成mirror对应的changelog
+#下载相应的git项目，并对它们进行打包（build.done目标)
 $(BUILD_DIR)/iso/isoroot-centos.done: \
 		$(BUILD_DIR)/mirror/build.done \
 		$(BUILD_DIR)/mirror/make-changelog.done \
 		$(BUILD_DIR)/packages/build.done \
 		$(BUILD_DIR)/iso/isoroot-dotfiles.done
 	mkdir -p $(ISOROOT)
+	#将生成的包内容全部同步到$(ISOROOT)中
 	rsync -rp $(LOCAL_MIRROR_CENTOS_OS_BASEURL)/ $(ISOROOT)
 	rsync -rp $(LOCAL_MIRROR_MOS_CENTOS) $(ISOROOT)
 	rsync -rp $(LOCAL_MIRROR)/extra-repos $(ISOROOT)
@@ -74,6 +77,7 @@ $(BUILD_DIR)/iso/isoroot-ubuntu.done: \
 		$(BUILD_DIR)/packages/build.done \
 		$(BUILD_DIR)/iso/isoroot-dotfiles.done
 	mkdir -p $(ISOROOT)/ubuntu
+	#将生成的包内容全部同步到$(ISOROOT)/ubuntu中
 	rsync -rp $(LOCAL_MIRROR_UBUNTU_OS_BASEURL)/ $(ISOROOT)/ubuntu/
 	rsync -rp $(LOCAL_MIRROR)/ubuntu-packages.changelog $(ISOROOT)
 	$(ACTION.TOUCH)
@@ -139,6 +143,7 @@ ISO_VOLUME_PREP:="Fuel team"
 # from which it builds iso image
 # that is why we need to make isoroot.done dependent on some files
 # and then copy these files into another directory
+# 生成ISO前需要将ISO需要文件全部准备好，通过isoroot.done来完成
 $(ISO_PATH): $(BUILD_DIR)/iso/isoroot.done
 	rm -f $@
 	mkdir -p $(BUILD_DIR)/iso/isoroot-mkisofs $(@D)
