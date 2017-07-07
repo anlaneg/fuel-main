@@ -122,6 +122,7 @@ $(BUILD_DIR)/packages/rpm/repo.done:
 
 $(BUILD_DIR)/packages/rpm/build.done:
 ifeq (1,$(strip $(BUILD_PACKAGES)))
+# 如果需要构建package,则需要repo.done,而repo.done实际上例赖于package-list中的所有包
 $(BUILD_DIR)/packages/rpm/build.done: $(BUILD_DIR)/packages/rpm/repo.done
 endif
 	$(ACTION.TOUCH)

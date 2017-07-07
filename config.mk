@@ -61,6 +61,7 @@ UBUNTU_IMAGE_RELEASE:=$(UBUNTU_MAJOR)$(UBUNTU_MINOR)
 SEPARATE_IMAGES?=/boot,ext2 /,ext4
 
 # Rebuld packages locally (do not use upstream versions)
+#  将此值设为0，可禁止采用upstream来构造packages
 BUILD_PACKAGES?=1
 
 # by default we are not allowed to downgrade rpm packages,
