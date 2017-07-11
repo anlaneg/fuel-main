@@ -1,7 +1,9 @@
 install #表示是安装，而不是升级 
 text #文本方式安装
+#配置yum的安装仓库, --name 仓库名称
 repo --name=mos --baseurl=file:///run/install/repo/mos-centos
 repo --name=extra --baseurl=file:///run/install/repo/extra-repos/proposed
+#见后面生成的source.ks文件，从光盘安装
 %include /tmp/source.ks
 {{reboot}} #安装结束后，机器需要reboot,并尝试弹出cd/dev/bootdisk
 lang en_US.UTF-8 #设置语言
@@ -51,6 +53,7 @@ for drv in `ls -1 /sys/block | grep "sd\|hd\|vd\|cciss"`; do
       fi
     fi
 done
+#默认选择第一个driver，优先选择不能removable的设备
 default_drive=`echo ${drives} ${removable_drives} | awk '{print $1}'`
 
 installdrive=${installdrive:-undefined}
@@ -63,11 +66,14 @@ for I in $(cat /proc/cmdline); do
   esac
 done
 
+#设置参数
 set ${drives} ${removable_drives}
+#发现的磁盘数量
 numdrives=`echo $#`
 
 tgtdrive="${installdrive}"
 
+#检查此硬盘是否有分区，是否可被全部擦除
 function confirm_format {
   check_drive="$1"
   local confirm_format="no"
@@ -94,6 +100,7 @@ function confirm_format {
 
 format_confirmed="no"
 
+#磁盘数量为0，不能安装
 if [ $numdrives -lt 1 ]; then
     exec < /dev/tty3 > /dev/tty3 2>&1
     chvt 3
@@ -111,6 +118,7 @@ if [ $numdrives -lt 1 ]; then
     poweroff
 fi
 
+#磁盘数量大于1个，需要选择
 if [ ${numdrives} -gt 1 ] || [ `echo ${drives} | wc -w` -eq 0 ] ; then
     exec < /dev/tty3 > /dev/tty3 2>&1
     chvt 3
@@ -129,6 +137,7 @@ if [ ${numdrives} -gt 1 ] || [ `echo ${drives} | wc -w` -eq 0 ] ; then
         echo "Persistent drives: ${drives}"
         echo "Removable drives: ${removable_drives}"
         echo
+        #如果有仅有一个drivers，则自动选择
         if [ `echo ${drives} | wc -w` -eq 1 ] ; then
             read -t 30 -p "Choose hard drive: " tgtdrive || tgtdrive=$default_drive
         else
@@ -157,6 +166,7 @@ else
     tgtdrive=`echo ${drives} | sed -e "s/^\s*//" -e "s/\s*$//"`
 fi
 
+#确认数据可以格式化
 if [ "$format_confirmed" != "yes" ] ; then
   exec < /dev/tty3 > /dev/tty3 2>&1
   chvt 3
@@ -178,6 +188,7 @@ if [ "$format_confirmed" != "yes" ] ; then
 fi
 
 # verify tgtdrive is at least 50GB
+# 校验磁盘空间需要大于50G
 tgtdrivesize=$(( $(cat "/sys/class/block/${tgtdrive}/size") / 2 / 1024 ))
 if [ $tgtdrivesize -lt 51200 ]; then
     exec < /dev/tty3 > /dev/tty3 2>&1
@@ -207,6 +218,7 @@ if [ -e /proc/sys/dev/cdrom/info ]; then
     cdrom_device=$(cat /proc/sys/dev/cdrom/info | awk '/drive name:/{print $3}')
 fi
 
+#生成/tmp/source.ks文件
 if [ -e /dev/disk/by-label/${iso_volume_id} ]; then
     real_device=$(readlink -e /dev/disk/by-label/${iso_volume_id})
     if [ "${real_device}" == "/dev/${cdrom_device}" ]; then
@@ -218,15 +230,23 @@ else
     echo "cdrom" > /tmp/source.ks
 fi
 
+#删除掉所有vg
 vgdisplay -c | cut -d':' -f1 | xargs vgremove -ff
 dd if=/dev/zero of=/dev/${tgtdrive} bs=10M count=10
 sleep 3
+#重读分区表
 hdparm -z /dev/${tgtdrive}
+#创建disklabel,创建gpt分区表
 parted -s /dev/${tgtdrive} mklabel gpt
+#创建主分区，其起始位置为磁盘起始位置，结束位置24M
 parted -a none -s /dev/${tgtdrive} unit MiB mkpart primary 0% 24
+#标记1分区是biso grub分区
 parted -s /dev/${tgtdrive} set 1 bios_grub on
+#创建200M主分区，起始位置24M,结束位置224M,采用fat16文件类型
 parted -a none -s /dev/${tgtdrive} unit MiB mkpart primary fat16 24 224
+#标记2分区为boot分区
 parted -s /dev/${tgtdrive} set 2 boot on
+#创建分区3为主分区，大小200M
 parted -a none -s /dev/${tgtdrive} unit MiB mkpart primary 224 424
 sleep 3
 hdparm -z /dev/${tgtdrive}
@@ -240,6 +260,7 @@ else
     bootdev=${tgtdrive}
 fi
 
+#生成/tmp/partition.ks文件，指明挂载点
 cat << EOF > /tmp/partition.ks
 part /boot --onpart=/dev/${bootdev}3
 part /boot/efi --onpart=/dev/${bootdev}2
@@ -400,6 +421,7 @@ test -e ${SOURCE}/default_deb_repos.yaml && cp ${SOURCE}/default_deb_repos.yaml 
 # ----------------------
 # UNPACKING REPOSITORIES
 # ----------------------
+#将光盘中的目录copy到repodir中
 
 wwwdir="/var/www/nailgun"
 repodir="${wwwdir}/${OPENSTACK_VERSION}"
@@ -429,6 +451,7 @@ ln -s ${repodir}/mos-centos ${wwwdir}/mos-centos
 ln -s ${repodir}/extra-repos ${wwwdir}/extra-repos
 
 # Prepare local repository specification
+# 配置yum的nailgun仓库
 rm /etc/yum.repos.d/CentOS*.repo
 cp ${SOURCE}/extra-repos/extra.repo /etc/yum.repos.d/
 cat > /etc/yum.repos.d/nailgun.repo << EOF
